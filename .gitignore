@@ -1,0 +1,16 @@
+# Secrets — never commit
+.env
+
+# Gitea runtime data
+gitea-data/
+postgres/
+runner1-data/
+runner2-data/
+runner3-data/
+
+# Nginx rendered config (generated from template)
+nginx/gitea.conf
+
+# OS / editor
+.DS_Store
+*.swp
