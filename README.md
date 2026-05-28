@@ -1,8 +1,35 @@
-# Gitea IaC
+# Self-Hosted Gitea
 
 ![CI](https://github.com/kipngeno-isaac/self-hosted-gitea/actions/workflows/ci.yml/badge.svg)
+![Gitea](https://img.shields.io/badge/Gitea-1.25-609926?logo=gitea&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
+![Grafana](https://img.shields.io/badge/Grafana-latest-F46800?logo=grafana&logoColor=white)
+![Prometheus](https://img.shields.io/badge/Prometheus-latest-E6522C?logo=prometheus&logoColor=white)
+![Nginx](https://img.shields.io/badge/Nginx-latest-009639?logo=nginx&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker_Compose-latest-2496ED?logo=docker&logoColor=white)
+![Ubuntu](https://img.shields.io/badge/Ubuntu-22.04%20|%2024.04-E95420?logo=ubuntu&logoColor=white)
+![Let's Encrypt](https://img.shields.io/badge/Let's_Encrypt-TLS-003A70?logo=letsencrypt&logoColor=white)
+![Shell Script](https://img.shields.io/badge/Shell_Script-bash-4EAA25?logo=gnubash&logoColor=white)
 
 Self-hosted [Gitea](https://gitea.io) stack with PostgreSQL, Redis, three Act Runners, Prometheus + Grafana monitoring, and Nginx + Let's Encrypt TLS. Fully automated — one command from a bare Ubuntu VPS to a running instance.
+
+---
+
+## Built for SMEs
+
+Many small and medium-sized businesses pay $21–$50/user/month for GitHub Enterprise or GitLab SaaS. For a team of 50, that's up to $30,000/year — before CI/CD minutes. This stack runs the same core capabilities on a single $40/month VPS.
+
+| Concern | How this stack addresses it |
+|---|---|
+| **Code ownership** | All source code stays on your own server — no third-party data exposure |
+| **Cost** | Flat VPS cost regardless of team size; no per-seat or per-CI-minute billing |
+| **CI/CD** | Three parallel Act Runners with GitHub Actions-compatible workflow syntax — no migration cost if teams already know GitHub Actions |
+| **Access control** | Registration disabled by default; users provisioned by admins only |
+| **Compliance** | Data never leaves your infrastructure — relevant for teams under GDPR, ISO 27001, or industry-specific data residency requirements |
+| **Reliability** | Automated backups, scripted restore, and Grafana alerting keep the ops burden low for a small IT team |
+| **Scale** | Comfortably supports 5–200 concurrent developers on modest hardware; Redis and PostgreSQL handle session and query load efficiently |
+| **Onboarding** | One `make bootstrap && make deploy` from a bare Ubuntu VPS — no Kubernetes or cloud expertise required |
 
 ---
 
