@@ -12,7 +12,10 @@ if [[ ! -f "$ROOT_DIR/.env" ]]; then
   echo "ERROR: .env not found. Copy .env.example to .env and fill in values."
   exit 1
 fi
-set -a; source "$ROOT_DIR/.env"; set +a
+set -a
+# shellcheck source=/dev/null
+source "$ROOT_DIR/.env"
+set +a
 
 # ── Packages ─────────────────────────────────────────────────────────────────
 echo "==> Updating system packages"
@@ -27,10 +30,12 @@ if ! command -v docker &>/dev/null; then
   curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
     | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
   chmod a+r /etc/apt/keyrings/docker.gpg
+  # shellcheck source=/dev/null
+  CODENAME="$(. /etc/os-release && echo "$VERSION_CODENAME")"
   echo \
     "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
     https://download.docker.com/linux/ubuntu \
-    $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+    ${CODENAME} stable" \
     | tee /etc/apt/sources.list.d/docker.list > /dev/null
   apt-get update -y
   apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
@@ -47,6 +52,7 @@ fi
 
 # ── Nginx ────────────────────────────────────────────────────────────────────
 echo "==> Configuring Nginx"
+# shellcheck disable=SC2016
 envsubst '${DOMAIN}' < "$ROOT_DIR/nginx/gitea.conf.template" \
   > /etc/nginx/sites-available/gitea
 ln -sf /etc/nginx/sites-available/gitea /etc/nginx/sites-enabled/gitea
@@ -76,6 +82,7 @@ else
 fi
 
 # Switch to full TLS Nginx config
+# shellcheck disable=SC2016
 envsubst '${DOMAIN}' < "$ROOT_DIR/nginx/gitea.conf.template" \
   > /etc/nginx/sites-available/gitea
 ln -sf /etc/nginx/sites-available/gitea /etc/nginx/sites-enabled/gitea
