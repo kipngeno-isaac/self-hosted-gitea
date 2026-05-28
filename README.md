@@ -1,6 +1,6 @@
 # Gitea IaC
 
-![CI](https://github.com/<your-github-username>/gitea-iac/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/kipngeno-isaac/self-hosted-gitea/actions/workflows/ci.yml/badge.svg)
 
 Self-hosted [Gitea](https://gitea.io) stack with PostgreSQL, Redis, three Act Runners, Prometheus + Grafana monitoring, and Nginx + Let's Encrypt TLS. Fully automated — one command from a bare Ubuntu VPS to a running instance.
 
@@ -38,26 +38,31 @@ graph TB
             Gitea -.->|job dispatch| R2["Act Runner 2\n1 CPU / 1 GB"]
             Gitea -.->|job dispatch| R3["Act Runner 3\n1 CPU / 1 GB"]
 
-            Prom["Prometheus\n30d retention"] -->|bearer token /metrics| Gitea
+            Prom["Prometheus\n30d retention"] -->|/metrics| Gitea
             Prom -->|:9100| NE["Node Exporter\nhost metrics"]
             Graf["Grafana\n:3001 localhost"] --> Prom
         end
 
         R1 & R2 & R3 -->|docker.sock| DE["Docker Engine"]
+        Nginx -->|/grafana/ :3001| Graf
     end
-
-    Dev -->|SSH tunnel :3001| Graf
 ```
 
 ---
 
-## Live Instance
+## Screenshots
 
-Running at **[gitea.example.com](https://gitea.example.com)**
+**Grafana Overview Dashboard** — live metrics: active users, repositories, Gitea CPU and memory usage, host CPU and disk
 
-![Grafana dashboard](docs/screenshots/grafana-dashboard.png)
-![Gitea UI](docs/screenshots/gitea-ui.png)
-![Docker containers healthy](docs/screenshots/docker-ps.png)
+![Grafana dashboard showing live metrics including 1 active user, 2 repositories, 212 MiB Gitea memory, 8 CPU cores, 14.3 GB free host memory, and time-series graphs for CPU usage and disk space](docs/screenshots/grafana-dashboard.png)
+
+**Gitea Explore** — repository listing served over HTTPS via Nginx with Let's Encrypt TLS
+
+![Gitea explore page showing two repositories: gitea-demo (JavaScript) and devops-website (HTML)](docs/screenshots/gitea-ui.png)
+
+**All 9 containers healthy** — Gitea, PostgreSQL, Redis, 3 Act Runners, Prometheus, Grafana, Node Exporter
+
+![docker compose ps output showing all 9 containers running with correct port bindings and healthy status](docs/screenshots/docker-ps.png)
 
 ---
 
@@ -90,8 +95,8 @@ Running at **[gitea.example.com](https://gitea.example.com)**
 ### 1. Clone onto your server
 
 ```bash
-git clone https://github.com/<your-org>/gitea-iac.git
-cd gitea-iac
+git clone https://github.com/kipngeno-isaac/self-hosted-gitea.git
+cd self-hosted-gitea
 ```
 
 ### 2. Configure environment variables
@@ -106,7 +111,6 @@ nano .env
 | `DOMAIN` | Your domain, e.g. `gitea.example.com` |
 | `POSTGRES_PASSWORD` | Strong password for the database |
 | `RUNNER_TOKEN` | Get from Gitea → Site Admin → Runners after first boot |
-| `METRICS_TOKEN` | Random string used to protect the `/metrics` endpoint |
 | `GRAFANA_PASSWORD` | Grafana admin password |
 | `LETSENCRYPT_EMAIL` | Email for certificate expiry alerts |
 
@@ -244,7 +248,7 @@ gitea-iac/
 | 443 | HTTPS | Public | Gitea web UI, API, webhooks |
 | 222 | SSH | Public | Git over SSH |
 | 3000 | HTTP | localhost only | Gitea (via Nginx) |
-| 3001 | HTTP | localhost only | Grafana (via SSH tunnel) |
+| 3001 | HTTP | localhost only | Grafana (proxied via Nginx at `/grafana/`) |
 
 **SSH clone URL:** `ssh://git@<your-domain>:222/<org>/<repo>.git`
 

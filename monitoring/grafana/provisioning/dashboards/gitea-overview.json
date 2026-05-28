@@ -2,7 +2,7 @@
   "title": "Gitea Overview",
   "uid": "gitea-overview",
   "schemaVersion": 38,
-  "version": 1,
+  "version": 2,
   "refresh": "30s",
   "tags": ["gitea"],
   "time": { "from": "now-6h", "to": "now" },
@@ -10,17 +10,17 @@
     {
       "id": 1,
       "type": "stat",
-      "title": "Users",
-      "gridPos": { "x": 0, "y": 0, "w": 3, "h": 4 },
+      "title": "Active Users",
+      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
       "datasource": { "type": "prometheus" },
-      "targets": [{ "expr": "gitea_users", "legendFormat": "Users" }],
+      "targets": [{ "expr": "gitea_users{state=\"active\"}", "legendFormat": "Users" }],
       "options": { "colorMode": "background", "graphMode": "none" }
     },
     {
       "id": 2,
       "type": "stat",
       "title": "Repositories",
-      "gridPos": { "x": 3, "y": 0, "w": 3, "h": 4 },
+      "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
       "datasource": { "type": "prometheus" },
       "targets": [{ "expr": "gitea_repositories", "legendFormat": "Repos" }],
       "options": { "colorMode": "background", "graphMode": "none" }
@@ -28,27 +28,27 @@
     {
       "id": 3,
       "type": "stat",
+      "title": "Organizations",
+      "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus" },
+      "targets": [{ "expr": "gitea_organizations", "legendFormat": "Orgs" }],
+      "options": { "colorMode": "background", "graphMode": "none" }
+    },
+    {
+      "id": 4,
+      "type": "stat",
       "title": "Gitea Memory",
-      "gridPos": { "x": 6, "y": 0, "w": 3, "h": 4 },
+      "gridPos": { "x": 0, "y": 4, "w": 4, "h": 4 },
       "datasource": { "type": "prometheus" },
       "targets": [{ "expr": "process_resident_memory_bytes{job=\"gitea\"} / 1024 / 1024", "legendFormat": "MB" }],
       "options": { "colorMode": "background", "graphMode": "none" },
       "fieldConfig": { "defaults": { "unit": "mbytes" } }
     },
     {
-      "id": 4,
-      "type": "stat",
-      "title": "Go Goroutines",
-      "gridPos": { "x": 9, "y": 0, "w": 3, "h": 4 },
-      "datasource": { "type": "prometheus" },
-      "targets": [{ "expr": "go_goroutines{job=\"gitea\"}", "legendFormat": "Goroutines" }],
-      "options": { "colorMode": "value", "graphMode": "area" }
-    },
-    {
       "id": 5,
       "type": "stat",
       "title": "Host CPU Cores",
-      "gridPos": { "x": 12, "y": 0, "w": 3, "h": 4 },
+      "gridPos": { "x": 4, "y": 4, "w": 4, "h": 4 },
       "datasource": { "type": "prometheus" },
       "targets": [{ "expr": "count(node_cpu_seconds_total{mode=\"idle\"})", "legendFormat": "Cores" }],
       "options": { "colorMode": "value", "graphMode": "none" }
@@ -57,7 +57,7 @@
       "id": 6,
       "type": "stat",
       "title": "Host Free Memory",
-      "gridPos": { "x": 15, "y": 0, "w": 3, "h": 4 },
+      "gridPos": { "x": 8, "y": 4, "w": 4, "h": 4 },
       "datasource": { "type": "prometheus" },
       "targets": [{ "expr": "node_memory_MemAvailable_bytes / 1024 / 1024 / 1024", "legendFormat": "GB" }],
       "options": { "colorMode": "background", "graphMode": "none" },
@@ -66,17 +66,17 @@
     {
       "id": 7,
       "type": "timeseries",
-      "title": "Gitea HTTP Request Rate",
-      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "title": "Gitea CPU Usage",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
       "datasource": { "type": "prometheus" },
-      "targets": [{ "expr": "rate(gitea_accesses_total[5m])", "legendFormat": "req/s" }],
-      "fieldConfig": { "defaults": { "unit": "reqps" } }
+      "targets": [{ "expr": "rate(process_cpu_seconds_total{job=\"gitea\"}[5m]) * 100", "legendFormat": "CPU %" }],
+      "fieldConfig": { "defaults": { "unit": "percent" } }
     },
     {
       "id": 8,
       "type": "timeseries",
       "title": "Host CPU Usage %",
-      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
       "datasource": { "type": "prometheus" },
       "targets": [
         {
@@ -90,7 +90,7 @@
       "id": 9,
       "type": "timeseries",
       "title": "Gitea Process Memory",
-      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
       "datasource": { "type": "prometheus" },
       "targets": [
         { "expr": "process_resident_memory_bytes{job=\"gitea\"}", "legendFormat": "RSS" },
@@ -102,7 +102,7 @@
       "id": 10,
       "type": "timeseries",
       "title": "Disk Space Available",
-      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
       "datasource": { "type": "prometheus" },
       "targets": [
         { "expr": "node_filesystem_avail_bytes{mountpoint=\"/\"}", "legendFormat": "/ available" },
