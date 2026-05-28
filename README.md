@@ -1,6 +1,23 @@
 # Gitea IaC
 
+![CI](https://github.com/<your-github-username>/gitea-iac/actions/workflows/ci.yml/badge.svg)
+
 Self-hosted [Gitea](https://gitea.io) stack with PostgreSQL, Redis, three Act Runners, Prometheus + Grafana monitoring, and Nginx + Let's Encrypt TLS. Fully automated — one command from a bare Ubuntu VPS to a running instance.
+
+---
+
+## Skills Demonstrated
+
+| Area | Detail |
+|---|---|
+| **Containerisation** | Docker Compose multi-service stack with health checks, dependency ordering, and resource limits |
+| **Databases** | PostgreSQL 15 with persistent volumes; Redis 7 for caching, sessions, and async job queues |
+| **Observability** | Prometheus metrics collection with 30-day retention; Grafana dashboards auto-provisioned via config |
+| **Security** | UFW firewall, fail2ban brute-force protection, SSH hardening, TLS 1.3, HSTS, sysctl hardening |
+| **Automation** | Fully scripted bootstrap, deploy, backup, restore, and OS hardening — idempotent and re-runnable |
+| **CI/CD** | GitHub Actions pipeline: YAML lint, shellcheck, Trivy image scan, Trufflehog secrets detection, deploy dry-run |
+| **Networking** | Nginx reverse proxy with automatic Let's Encrypt TLS, internal service isolation (ports bound to localhost) |
+| **Infrastructure as Code** | Entire stack reproducible from a single `make bootstrap && make deploy` on a bare VPS |
 
 ---
 
@@ -31,6 +48,16 @@ graph TB
 
     Dev -->|SSH tunnel :3001| Graf
 ```
+
+---
+
+## Live Instance
+
+Running at **[gitea.example.com](https://gitea.example.com)**
+
+![Grafana dashboard](docs/screenshots/grafana-dashboard.png)
+![Gitea UI](docs/screenshots/gitea-ui.png)
+![Docker containers healthy](docs/screenshots/docker-ps.png)
 
 ---
 
@@ -125,12 +152,7 @@ Prometheus scrapes Gitea metrics and host metrics every 15 seconds. Grafana ship
 
 ### Access Grafana
 
-Grafana is bound to `127.0.0.1:3001` and not exposed publicly. Access it via SSH tunnel:
-
-```bash
-make grafana        # prints the exact ssh command
-# Then open: http://localhost:3001
-```
+Grafana is available publicly at **https://gitea.example.com/grafana** — served via the same Nginx reverse proxy as Gitea, no separate domain or port needed.
 
 ### What's monitored
 

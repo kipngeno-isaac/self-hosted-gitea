@@ -65,10 +65,18 @@ monitoring-up:
 monitoring-down:
 	docker compose stop node-exporter prometheus grafana
 
+# Set up public Grafana access (requires grafana.DOMAIN DNS A record to exist)
+grafana-public:
+	DOMAIN=$$(grep ^DOMAIN .env | cut -d= -f2) && \
+	EMAIL=$$(grep ^LETSENCRYPT_EMAIL .env | cut -d= -f2) && \
+	envsubst '$$DOMAIN' < nginx/grafana.conf.template > /etc/nginx/sites-available/grafana && \
+	ln -sf /etc/nginx/sites-available/grafana /etc/nginx/sites-enabled/grafana && \
+	nginx -t && systemctl reload nginx && \
+	certbot certonly --nginx -d grafana.$$DOMAIN --non-interactive --agree-tos --email $$EMAIL && \
+	nginx -t && systemctl reload nginx
+	@echo "Grafana is now live at https://grafana.$$(grep ^DOMAIN .env | cut -d= -f2)"
+
 # Print Grafana access instructions
 grafana:
-	@echo "Grafana is bound to 127.0.0.1:3001 (not exposed publicly)."
-	@echo "Access via SSH tunnel:"
-	@echo "  ssh -L 3001:localhost:3001 ubuntu@$$(grep DOMAIN .env | cut -d= -f2)"
-	@echo "Then open: http://localhost:3001"
-	@echo "Default credentials: admin / (GRAFANA_PASSWORD from .env)"
+	@echo "Grafana: https://grafana.$$(grep ^DOMAIN .env | cut -d= -f2)"
+	@echo "Credentials: admin / (GRAFANA_PASSWORD from .env)"
