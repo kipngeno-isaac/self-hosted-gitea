@@ -61,7 +61,6 @@ jobs:
           sed -i 's/^DOMAIN=.*/DOMAIN=test.example.com/' .env
           sed -i 's/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=testpassword123/' .env
           sed -i 's/^RUNNER_TOKEN=.*/RUNNER_TOKEN=placeholder/' .env
-          sed -i 's/^METRICS_TOKEN=.*/METRICS_TOKEN=testtoken/' .env
           sed -i 's/^GRAFANA_PASSWORD=.*/GRAFANA_PASSWORD=testpassword/' .env
 
       - name: Validate all variables resolve

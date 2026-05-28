@@ -212,30 +212,38 @@ make restore DATA=backups/gitea-20260101_120000.tar.gz \
 ## Repository Structure
 
 ```
-gitea-iac/
-├── .env.example
+self-hosted-gitea/
+├── .env.example                         # Variable template — copy to .env, never commit
 ├── .gitignore
 ├── .gitea/
 │   └── workflows/
-│       └── ci.yml                  # Reference CI/CD pipeline
-├── Makefile
-├── docker-compose.yml
+│       └── ci.yml                       # Gitea Actions pipeline (runs on the self-hosted instance)
+├── .github/
+│   └── workflows/
+│       └── ci.yml                       # GitHub Actions pipeline (lint, security scan, dry-run)
+├── Makefile                             # All day-to-day commands (deploy, backup, harden, etc.)
+├── docker-compose.yml                   # Full application stack definition
+├── docs/
+│   └── screenshots/                     # Live screenshots embedded in README
 ├── monitoring/
-│   ├── prometheus.yml              # Scrape config
+│   ├── prometheus.yml                   # Scrape config (Gitea + node-exporter)
 │   └── grafana/
 │       └── provisioning/
-│           ├── datasources/        # Prometheus datasource (auto-provisioned)
-│           └── dashboards/         # Gitea Overview dashboard (auto-provisioned)
+│           ├── datasources/
+│           │   └── prometheus.yml       # Prometheus datasource (auto-provisioned)
+│           └── dashboards/
+│               ├── dashboards.yml       # Dashboard provider config
+│               └── gitea-overview.json  # Gitea Overview dashboard (auto-provisioned)
 ├── nginx/
-│   └── gitea.conf.template
+│   └── gitea.conf.template              # Nginx config with Gitea + Grafana subpath routing
 ├── scripts/
-│   ├── bootstrap.sh
-│   ├── deploy.sh
-│   ├── harden.sh
-│   ├── backup.sh
-│   └── restore.sh
+│   ├── bootstrap.sh                     # One-time server setup (Docker, Nginx, Certbot)
+│   ├── deploy.sh                        # Start / update the stack
+│   ├── harden.sh                        # UFW, fail2ban, SSH hardening, sysctl
+│   ├── backup.sh                        # Backup data volume + PostgreSQL dump
+│   └── restore.sh                       # Restore from backup
 ├── README.md
-└── SECURITY.md
+└── SECURITY.md                          # Threat model, controls, reporting
 ```
 
 ---
