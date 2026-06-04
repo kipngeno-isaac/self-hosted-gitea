@@ -23,6 +23,13 @@ apt-get update -y
 apt-get upgrade -y
 apt-get install -y ca-certificates curl gnupg lsb-release nginx certbot python3-certbot-nginx gettext-base
 
+# Detect bare-IP deployment (skip TLS)
+IS_IP=false
+if [[ "${DOMAIN}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  IS_IP=true
+  echo "==> Bare-IP detected (${DOMAIN}) — skipping Let's Encrypt, using HTTP"
+fi
+
 # ── Docker ───────────────────────────────────────────────────────────────────
 if ! command -v docker &>/dev/null; then
   echo "==> Installing Docker"
@@ -52,45 +59,52 @@ fi
 
 # ── Nginx ────────────────────────────────────────────────────────────────────
 echo "==> Configuring Nginx"
-# shellcheck disable=SC2016
-envsubst '${DOMAIN}' < "$ROOT_DIR/nginx/gitea.conf.template" \
-  > /etc/nginx/sites-available/gitea
-ln -sf /etc/nginx/sites-available/gitea /etc/nginx/sites-enabled/gitea
 rm -f /etc/nginx/sites-enabled/default
 
-# Temporary HTTP-only config for certbot (no TLS block yet)
-cat > /etc/nginx/sites-available/gitea-http-only <<EOF
+if [[ "$IS_IP" == "true" ]]; then
+  # Bare-IP: use HTTP-only template, no TLS
+  # shellcheck disable=SC2016
+  envsubst '${DOMAIN}' < "$ROOT_DIR/nginx/gitea-http.conf.template" \
+    > /etc/nginx/sites-available/gitea
+  ln -sf /etc/nginx/sites-available/gitea /etc/nginx/sites-enabled/gitea
+  nginx -t && systemctl enable --now nginx && systemctl reload nginx
+else
+  # Domain: obtain Let's Encrypt cert, then switch to TLS config
+
+  # Temporary HTTP-only vhost so certbot can complete its challenge
+  cat > /etc/nginx/sites-available/gitea-http-only <<EOF
 server {
     listen 80;
     server_name ${DOMAIN};
     location / { return 200 'ok'; add_header Content-Type text/plain; }
 }
 EOF
-ln -sf /etc/nginx/sites-available/gitea-http-only /etc/nginx/sites-enabled/gitea
-nginx -t && systemctl reload nginx
+  ln -sf /etc/nginx/sites-available/gitea-http-only /etc/nginx/sites-enabled/gitea
+  nginx -t && systemctl enable --now nginx && systemctl reload nginx
 
-# ── TLS Certificate ──────────────────────────────────────────────────────────
-if [[ ! -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
-  echo "==> Obtaining Let's Encrypt certificate for ${DOMAIN}"
-  certbot certonly --nginx \
-    -d "${DOMAIN}" \
-    --non-interactive \
-    --agree-tos \
-    --email "${LETSENCRYPT_EMAIL}"
-else
-  echo "==> Certificate already exists — skipping certbot"
+  # ── TLS Certificate ────────────────────────────────────────────────────────
+  if [[ ! -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
+    echo "==> Obtaining Let's Encrypt certificate for ${DOMAIN}"
+    certbot certonly --nginx \
+      -d "${DOMAIN}" \
+      --non-interactive \
+      --agree-tos \
+      --email "${LETSENCRYPT_EMAIL}"
+  else
+    echo "==> Certificate already exists — skipping certbot"
+  fi
+
+  # Switch to full TLS config
+  # shellcheck disable=SC2016
+  envsubst '${DOMAIN}' < "$ROOT_DIR/nginx/gitea.conf.template" \
+    > /etc/nginx/sites-available/gitea
+  ln -sf /etc/nginx/sites-available/gitea /etc/nginx/sites-enabled/gitea
+  rm -f /etc/nginx/sites-available/gitea-http-only
+  nginx -t && systemctl reload nginx
+
+  # ── Certbot auto-renewal ───────────────────────────────────────────────────
+  systemctl enable --now certbot.timer 2>/dev/null || true
 fi
-
-# Switch to full TLS Nginx config
-# shellcheck disable=SC2016
-envsubst '${DOMAIN}' < "$ROOT_DIR/nginx/gitea.conf.template" \
-  > /etc/nginx/sites-available/gitea
-ln -sf /etc/nginx/sites-available/gitea /etc/nginx/sites-enabled/gitea
-rm -f /etc/nginx/sites-available/gitea-http-only
-nginx -t && systemctl reload nginx
-
-# ── Certbot auto-renewal ─────────────────────────────────────────────────────
-systemctl enable --now certbot.timer 2>/dev/null || true
 
 echo ""
 echo "==> Bootstrap complete. Run 'make deploy' (or scripts/deploy.sh) to start Gitea."
