@@ -111,9 +111,10 @@ graph TB
 ## Prerequisites
 
 - Ubuntu 22.04 or 24.04 VPS (2 CPU / 4 GB RAM minimum; 4 CPU / 8 GB recommended)
-- A domain name with an A record pointing to your server's public IP
 - SSH access as a user with `sudo`
-- Ports 80, 443, and 222 open in your cloud provider's firewall
+- Ports 80, 222 open in your cloud provider's firewall (also 443 if using a domain with TLS)
+- **Domain deployment:** a domain name with an A record pointing to your server's IP
+- **Bare-IP deployment:** no domain required — set `PROTOCOL=http` in `.env` and bootstrap handles the rest
 
 ---
 
@@ -135,17 +136,22 @@ nano .env
 
 | Variable | Description |
 |---|---|
-| `DOMAIN` | Your domain, e.g. `gitea.example.com` |
+| `DOMAIN` | Your domain (`gitea.example.com`) or bare IP (`1.2.3.4`) |
+| `PROTOCOL` | `https` for domain + TLS (default), `http` for bare-IP |
 | `POSTGRES_PASSWORD` | Strong password for the database |
 | `RUNNER_TOKEN` | Get from Gitea → Site Admin → Runners after first boot |
 | `GRAFANA_PASSWORD` | Grafana admin password |
-| `LETSENCRYPT_EMAIL` | Email for certificate expiry alerts |
+| `LETSENCRYPT_EMAIL` | Email for certificate expiry alerts (domain deployments only) |
 
 > **Note:** Leave `RUNNER_TOKEN` as a placeholder for the first run. Fill it in after Gitea is up, then re-run `make deploy`.
 
+> **Bare-IP tip:** Set `DOMAIN=<your-ip>` and `PROTOCOL=http`. Bootstrap will detect the IP, skip Let's Encrypt, and configure an HTTP-only Nginx proxy automatically.
+
 ### 3. Bootstrap the server
 
-Installs Docker, Nginx, Certbot, and obtains a TLS certificate.
+Installs Docker, Nginx, and Certbot. Automatically detects whether `DOMAIN` is a bare IP or a real domain:
+- **Bare IP** — configures HTTP-only Nginx, skips Let's Encrypt
+- **Domain** — obtains a Let's Encrypt TLS certificate and configures HTTPS
 
 ```bash
 make bootstrap
@@ -262,7 +268,8 @@ self-hosted-gitea/
 │               ├── dashboards.yml       # Dashboard provider config
 │               └── gitea-overview.json  # Gitea Overview dashboard (auto-provisioned)
 ├── nginx/
-│   └── gitea.conf.template              # Nginx config with Gitea + Grafana subpath routing
+│   ├── gitea.conf.template              # Nginx HTTPS config (domain + Let's Encrypt)
+│   └── gitea-http.conf.template         # Nginx HTTP-only config (bare-IP deployments)
 ├── scripts/
 │   ├── bootstrap.sh                     # One-time server setup (Docker, Nginx, Certbot)
 │   ├── deploy.sh                        # Start / update the stack
@@ -279,8 +286,8 @@ self-hosted-gitea/
 
 | Port | Protocol | Exposed | Purpose |
 |---|---|---|---|
-| 80 | HTTP | Public | Nginx → HTTPS redirect |
-| 443 | HTTPS | Public | Gitea web UI, API, webhooks |
+| 80 | HTTP | Public | Nginx — HTTPS redirect (domain) or direct proxy (bare-IP) |
+| 443 | HTTPS | Public | Gitea web UI, API, webhooks (domain deployments only) |
 | 222 | SSH | Public | Git over SSH |
 | 3000 | HTTP | localhost only | Gitea (via Nginx) |
 | 3001 | HTTP | localhost only | Grafana (proxied via Nginx at `/grafana/`) |
