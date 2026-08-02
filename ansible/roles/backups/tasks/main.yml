@@ -1,0 +1,37 @@
+---
+- name: Install nightly backup timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/gitea-backup.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Gitea stack backup
+      After=docker.service
+
+      [Service]
+      Type=oneshot
+      WorkingDirectory={{ deploy_dir }}
+      ExecStart=/usr/bin/env bash {{ deploy_dir }}/scripts/backup.sh
+
+- name: Install backup timer unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/gitea-backup.timer
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Nightly Gitea backup
+
+      [Timer]
+      OnCalendar=*-*-* 03:30:00
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+  notify: reload systemd
+
+- name: Enable backup timer
+  ansible.builtin.systemd:
+    name: gitea-backup.timer
+    enabled: true
+    state: started
+    daemon_reload: true

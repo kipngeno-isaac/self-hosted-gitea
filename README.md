@@ -10,9 +10,13 @@
 ![Docker](https://img.shields.io/badge/Docker_Compose-latest-2496ED?logo=docker&logoColor=white)
 ![Ubuntu](https://img.shields.io/badge/Ubuntu-22.04%20|%2024.04-E95420?logo=ubuntu&logoColor=white)
 ![Let's Encrypt](https://img.shields.io/badge/Let's_Encrypt-TLS-003A70?logo=letsencrypt&logoColor=white)
+![Terraform](https://img.shields.io/badge/Terraform-1.5+-7B42BC?logo=terraform&logoColor=white)
+![Ansible](https://img.shields.io/badge/Ansible-roles-EE0000?logo=ansible&logoColor=white)
 ![Shell Script](https://img.shields.io/badge/Shell_Script-bash-4EAA25?logo=gnubash&logoColor=white)
 
-Self-hosted [Gitea](https://gitea.io) stack with PostgreSQL, Redis, three Act Runners, Prometheus + Grafana monitoring, and Nginx + Let's Encrypt TLS. Fully automated — one command from a bare Ubuntu VPS to a running instance.
+Self-hosted [Gitea](https://gitea.io) stack with PostgreSQL, Redis, three Act Runners, Prometheus + Grafana monitoring, and Nginx + Let's Encrypt TLS.
+
+Provisioned with **Terraform**, configured with **Ansible**, run on **Docker Compose** — one command from an empty cloud account to a running instance. If you already have a server, the original shell-script path still works and needs neither tool installed.
 
 ---
 
@@ -29,7 +33,8 @@ Many small and medium-sized businesses pay $21–$50/user/month for GitHub Enter
 | **Compliance** | Data never leaves your infrastructure — relevant for teams under GDPR, ISO 27001, or industry-specific data residency requirements |
 | **Reliability** | Automated backups, scripted restore, and Grafana alerting keep the ops burden low for a small IT team |
 | **Scale** | Comfortably supports 5–200 concurrent developers on modest hardware; Redis and PostgreSQL handle session and query load efficiently |
-| **Onboarding** | One `make bootstrap && make deploy` from a bare Ubuntu VPS — no Kubernetes or cloud expertise required |
+| **Onboarding** | One `make provision` from an empty cloud account, or `make bootstrap && make deploy` on a server you already have — no Kubernetes expertise required either way |
+| **Reproducibility** | The server itself is declared in Terraform and configured by Ansible roles, so a lost host is rebuilt from version control rather than from memory |
 
 ---
 
@@ -44,7 +49,9 @@ Many small and medium-sized businesses pay $21–$50/user/month for GitHub Enter
 | **Automation** | Fully scripted bootstrap, deploy, backup, restore, and OS hardening — idempotent and re-runnable |
 | **CI/CD** | GitHub Actions pipeline: YAML lint, shellcheck, Trivy image scan, Trufflehog secrets detection, deploy dry-run |
 | **Networking** | Nginx reverse proxy with automatic Let's Encrypt TLS, internal service isolation (ports bound to localhost) |
-| **Infrastructure as Code** | Entire stack reproducible from a single `make bootstrap && make deploy` on a bare VPS |
+| **Provisioning** | Terraform declares the host, cloud firewall, and SSH key; state-managed with `prevent_destroy` on the data-bearing server |
+| **Configuration management** | Ansible roles for hardening, Docker, TLS, deployment, and backup timers — tag-scoped so security config can be re-applied on its own |
+| **Infrastructure as Code** | Empty cloud account to running instance in one `make provision`; the only handoff between layers is a Terraform-generated Ansible inventory |
 
 ---
 
@@ -108,17 +115,83 @@ graph TB
 
 ---
 
+## How It's Built
+
+Three layers, each with a single job and a clean handoff to the next:
+
+```
+terraform/   provisions the server, cloud firewall, and SSH key
+     │       └── writes ansible/inventory/hosts.ini
+     ▼
+ansible/     hardens the OS, installs Docker, obtains TLS, ships the stack
+     │       └── copies docker-compose.yml + .env to /opt/gitea
+     ▼
+docker/      runs the nine containers
+```
+
+The only contract between Terraform and Ansible is the generated inventory file, so swapping cloud provider means editing `terraform/main.tf` and nothing else.
+
+The shell scripts in `scripts/` remain first-class: `bootstrap.sh` and `harden.sh` do the same work as the `docker`, `nginx_tls`, and `hardening` roles for anyone who would rather not install Ansible.
+
+---
+
 ## Prerequisites
+
+**Path A — provision from scratch (Terraform + Ansible)**
+
+- [Terraform](https://developer.hashicorp.com/terraform/downloads) ≥ 1.5 and [Ansible](https://docs.ansible.com/ansible/latest/installation_guide/) on your workstation
+- A Hetzner Cloud API token (Project → Security → API tokens, Read & Write)
+- An SSH keypair (`~/.ssh/id_ed25519` by default)
+
+**Path B — use a server you already have (shell scripts)**
 
 - Ubuntu 22.04 or 24.04 VPS (2 CPU / 4 GB RAM minimum; 4 CPU / 8 GB recommended)
 - SSH access as a user with `sudo`
 - Ports 80, 222 open in your cloud provider's firewall (also 443 if using a domain with TLS)
+
+**Both paths**
+
 - **Domain deployment:** a domain name with an A record pointing to your server's IP
-- **Bare-IP deployment:** no domain required — set `PROTOCOL=http` in `.env` and bootstrap handles the rest
+- **Bare-IP deployment:** no domain required — set `PROTOCOL=http` in `.env` and the bootstrap handles the rest
 
 ---
 
-## Quick Start
+## Quick Start — Path A: provision from scratch
+
+```bash
+git clone https://github.com/kipngeno-isaac/self-hosted-gitea.git
+cd self-hosted-gitea
+
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+$EDITOR terraform/terraform.tfvars      # Hetzner token, region, SSH key paths
+
+cp .env.example .env
+$EDITOR .env                            # DOMAIN, passwords — see the table below
+
+make provision                          # tf-init → tf-apply → ansible-deps → ansible-deploy
+```
+
+`make tf-apply` prints the server's IPv4 address. Point your `DOMAIN` A record at it **before** the Ansible run reaches the TLS step, or Let's Encrypt will fail the challenge. Then finish with the Gitea setup wizard (step 6 below).
+
+Individual targets, if you would rather go one step at a time:
+
+```bash
+make tf-init         # download providers
+make tf-plan         # preview infrastructure changes
+make tf-apply        # create the server, generate the Ansible inventory
+make ansible-deps    # install required Ansible collections
+make ansible-check   # dry-run the playbook (--check --diff)
+make ansible-deploy  # configure the host and start the stack
+make ansible-harden  # re-apply security configuration only
+```
+
+> **Restrict SSH before treating the host as production.** `admin_cidrs` in `terraform.tfvars` defaults to the whole internet so that a first apply cannot lock you out. Narrow it to your own address once you have confirmed access.
+
+> **`prevent_destroy` is set on the server** — it holds the Gitea repositories and the Postgres volume. `make tf-destroy` will refuse until you remove that lifecycle block, which is deliberate. Confirm your backups live off-host first.
+
+---
+
+## Quick Start — Path B: existing server
 
 ### 1. Clone onto your server
 
@@ -226,6 +299,15 @@ make monitoring-up     # start monitoring stack
 make monitoring-down   # stop monitoring stack
 ```
 
+Infrastructure-level commands (run from your workstation, not the server):
+
+```bash
+make tf-plan           # preview infrastructure changes
+make tf-apply          # apply them and refresh the Ansible inventory
+make ansible-check     # dry-run the playbook against the live host
+make ansible-harden    # re-apply security configuration only
+```
+
 ### Admin CLI
 
 ```bash
@@ -248,6 +330,29 @@ make restore DATA=backups/gitea-20260101_120000.tar.gz \
 self-hosted-gitea/
 ├── .env.example                         # Variable template — copy to .env, never commit
 ├── .gitignore
+├── terraform/                           # Layer 1 — provisions the server
+│   ├── versions.tf                      # Required Terraform and provider versions
+│   ├── providers.tf                     # Hetzner Cloud provider
+│   ├── variables.tf                     # Region, server type, SSH keys, admin CIDRs
+│   ├── main.tf                          # Server, cloud firewall, generated Ansible inventory
+│   ├── outputs.tf                       # Server IP, SSH command, next steps
+│   ├── terraform.tfvars.example         # Copy to terraform.tfvars — git-ignored
+│   └── README.md
+├── ansible/                             # Layer 2 — configures the server
+│   ├── ansible.cfg
+│   ├── site.yml                         # Entry point — runs every role in order
+│   ├── requirements.yml                 # community.general, community.docker
+│   ├── group_vars/all.yml               # Deploy paths, firewall ports, TLS toggle
+│   ├── inventory/
+│   │   └── hosts.ini.example            # hosts.ini itself is generated by Terraform
+│   ├── roles/
+│   │   ├── common/                      # Base packages, unattended security upgrades
+│   │   ├── hardening/                   # UFW, fail2ban, sshd, sysctl
+│   │   ├── docker/                      # Docker Engine + Compose plugin
+│   │   ├── nginx_tls/                   # Nginx vhost, Let's Encrypt, bare-IP fallback
+│   │   ├── gitea_stack/                 # Ships the compose stack, waits for health
+│   │   └── backups/                     # systemd timer running backup.sh nightly
+│   └── README.md
 ├── .gitea/
 │   └── workflows/
 │       └── ci.yml                       # Gitea Actions pipeline (runs on the self-hosted instance)
@@ -303,9 +408,10 @@ See [SECURITY.md](SECURITY.md) for the full threat model, hardening controls, an
 Quick summary:
 - Registration disabled by default — users created via admin CLI
 - Port 3000 bound to `127.0.0.1` only
-- UFW firewall + fail2ban brute-force protection
+- Two independent firewall layers: the Hetzner cloud firewall drops traffic before it reaches the host, UFW protects against a misconfigured cloud firewall. Both rule sets must be kept in step — see `terraform/main.tf` and `ansible/group_vars/all.yml`
+- fail2ban brute-force protection on sshd, nginx auth, and Gitea login
 - TLS 1.2/1.3 only with HSTS
-- Secrets in `.env` (git-ignored)
+- Secrets in `.env` and `terraform.tfvars` (both git-ignored, along with Terraform state)
 - Automated security updates via unattended-upgrades
 
 ---

@@ -1,0 +1,10 @@
+---
+ssh_permit_root_login: "prohibit-password"   # Ansible connects as root over a key
+ssh_password_authentication: "no"
+ssh_max_auth_tries: 3
+
+fail2ban_bantime: 1h
+fail2ban_findtime: 10m
+fail2ban_maxretry: 5
+
+gitea_log_path: /opt/gitea/gitea-data/gitea/log/gitea.log
