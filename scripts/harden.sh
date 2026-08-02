@@ -30,8 +30,27 @@ cp -n "$SSHD" "${SSHD}.bak"
 
 # Disable password authentication, enable key-only login
 sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' "$SSHD"
-sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' "$SSHD"
 sed -i 's/^#*X11Forwarding.*/X11Forwarding no/' "$SSHD"
+
+# Root login policy.
+#
+# Disabling root outright is the stronger setting, but it is only safe when some
+# other account can still get in. On a cloud image provisioned by terraform/ the
+# root account with an authorized key is the ONLY access — setting "no" there
+# locks you out of your own server and breaks every later Ansible run.
+#
+# So: disable root entirely when this was invoked via sudo from a normal user
+# (that user remains a way in), otherwise fall back to key-only root, which still
+# blocks password brute-force. Same branch bootstrap.sh uses for the docker group.
+if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+  ROOT_LOGIN_POLICY="no"
+  echo "==> sudo user '${SUDO_USER}' detected — disabling root SSH entirely"
+else
+  ROOT_LOGIN_POLICY="prohibit-password"
+  echo "==> No non-root sudo user — keeping key-only root SSH (prohibit-password)"
+  echo "    Create an admin user and re-run to disable root login completely."
+fi
+sed -i "s/^#*PermitRootLogin.*/PermitRootLogin ${ROOT_LOGIN_POLICY}/" "$SSHD"
 
 # Add settings if not already present
 grep -q "^MaxAuthTries" "$SSHD" || echo "MaxAuthTries 3" >> "$SSHD"
@@ -103,8 +122,16 @@ echo "==> Unattended upgrades enabled"
 # ── Kernel / sysctl Hardening ─────────────────────────────────────────────────
 echo "==> Applying sysctl hardening"
 cat > /etc/sysctl.d/99-harden.conf <<'EOF'
-# Disable IP forwarding (we're not a router)
-net.ipv4.ip_forward = 0
+# IP forwarding must stay ENABLED on a Docker host.
+#
+# Docker turns forwarding on when the daemon starts, but a file in /etc/sysctl.d/
+# is applied on every boot and would turn it straight back off. Container traffic
+# then stops routing across the bridge network and the whole stack fails to come
+# back after a reboot — a failure that only shows up on the next restart, long
+# after this script appeared to succeed.
+#
+# The filtering this was meant to provide is done by UFW and the cloud firewall.
+net.ipv4.ip_forward = 1
 # Ignore ICMP broadcast requests
 net.ipv4.icmp_echo_ignore_broadcasts = 1
 # Ignore bogus ICMP errors
