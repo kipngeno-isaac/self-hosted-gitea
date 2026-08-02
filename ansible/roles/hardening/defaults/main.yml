@@ -1,10 +1,12 @@
 ---
-ssh_permit_root_login: "prohibit-password"   # Ansible connects as root over a key
-ssh_password_authentication: "no"
-ssh_max_auth_tries: 3
+# Ansible connects as root over a key, so root login stays permitted but
+# password-only. scripts/harden.sh makes the same call for the same reason.
+hardening_ssh_permit_root_login: "prohibit-password"
+hardening_ssh_password_authentication: "no"
+hardening_ssh_max_auth_tries: 3
 
-fail2ban_bantime: 1h
-fail2ban_findtime: 10m
-fail2ban_maxretry: 5
+hardening_fail2ban_bantime: 1h
+hardening_fail2ban_findtime: 10m
+hardening_fail2ban_maxretry: 5
 
-gitea_log_path: /opt/gitea/gitea-data/gitea/log/gitea.log
+hardening_gitea_log_path: /opt/gitea/gitea-data/gitea/log/gitea.log

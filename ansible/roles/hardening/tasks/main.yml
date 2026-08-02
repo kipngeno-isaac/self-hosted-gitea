@@ -7,13 +7,15 @@
     name: [ufw, fail2ban]
     state: present
 
-- name: Set UFW default policies
+- name: Deny inbound traffic by default
   community.general.ufw:
-    direction: "{{ item.direction }}"
-    policy: "{{ item.policy }}"
-  loop:
-    - { direction: incoming, policy: deny }
-    - { direction: outgoing, policy: allow }
+    direction: incoming
+    policy: deny
+
+- name: Allow outbound traffic by default
+  community.general.ufw:
+    direction: outgoing
+    policy: allow
 
 - name: Allow required inbound ports
   community.general.ufw:
@@ -34,20 +36,20 @@
     line: "{{ item.key }} {{ item.value }}"
     validate: "sshd -t -f %s"
   loop:
-    - { key: PasswordAuthentication, value: "{{ ssh_password_authentication }}" }
-    - { key: PermitRootLogin,        value: "{{ ssh_permit_root_login }}" }
-    - { key: X11Forwarding,          value: "no" }
-    - { key: MaxAuthTries,           value: "{{ ssh_max_auth_tries }}" }
-    - { key: ClientAliveInterval,    value: "300" }
-    - { key: ClientAliveCountMax,    value: "2" }
-  notify: reload sshd
+    - {key: PasswordAuthentication, value: "{{ hardening_ssh_password_authentication }}"}
+    - {key: PermitRootLogin, value: "{{ hardening_ssh_permit_root_login }}"}
+    - {key: X11Forwarding, value: "no"}
+    - {key: MaxAuthTries, value: "{{ hardening_ssh_max_auth_tries }}"}
+    - {key: ClientAliveInterval, value: "300"}
+    - {key: ClientAliveCountMax, value: "2"}
+  notify: Reload sshd
 
 - name: Install fail2ban jails
   ansible.builtin.template:
     src: jail.local.j2
     dest: /etc/fail2ban/jail.d/gitea.conf
     mode: "0644"
-  notify: restart fail2ban
+  notify: Restart fail2ban
 
 - name: Install fail2ban gitea filter
   ansible.builtin.copy:
@@ -58,7 +60,7 @@
       failregex = .* Failed authentication attempt for .* from <HOST>
                   .* invalid credentials from <HOST>
       ignoreregex =
-  notify: restart fail2ban
+  notify: Restart fail2ban
 
 - name: Enable fail2ban
   ansible.builtin.systemd:
@@ -71,12 +73,11 @@
     dest: /etc/sysctl.d/99-harden.conf
     mode: "0644"
     content: |
-      # NOTE: scripts/harden.sh sets net.ipv4.ip_forward = 0. That breaks Docker
-      # container networking after a reboot — Docker enables forwarding at daemon
-      # start, and a sysctl.d file re-disables it on boot. Docker bridge networks
-      # then fail to route, which takes the whole stack down. Left enabled here on
-      # purpose; the UFW and cloud firewalls do the work that disabling it was
-      # meant to do.
+      # IP forwarding must stay ENABLED on a Docker host. Docker turns it on when
+      # the daemon starts, but a file in /etc/sysctl.d/ is re-applied on every
+      # boot and would turn it straight back off — after which container traffic
+      # stops routing across the bridge network and the stack fails to come back.
+      # The filtering this was meant to give is done by UFW and the cloud firewall.
       net.ipv4.ip_forward = 1
 
       net.ipv4.icmp_echo_ignore_broadcasts = 1
@@ -85,4 +86,4 @@
       net.ipv4.conf.all.accept_source_route = 0
       net.ipv6.conf.all.accept_source_route = 0
       net.ipv4.conf.all.log_martians = 1
-  notify: reload sysctl
+  notify: Reload sysctl

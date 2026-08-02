@@ -1,6 +1,12 @@
 ---
 # Mirrors the nginx/certbot half of scripts/bootstrap.sh, including its bare-IP
 # branch: when DOMAIN is a literal IPv4 address, skip Let's Encrypt and serve HTTP.
+#
+# NOTE ON RENDERING: nginx/*.conf.template use envsubst syntax (${DOMAIN}), not
+# Jinja. Passing them through ansible.builtin.template would leave ${DOMAIN}
+# untouched and ship a broken vhost. They are read and string-substituted instead,
+# so the same template files stay the single source of truth for both the shell
+# path and this one.
 
 - name: Install nginx and certbot
   ansible.builtin.apt:
@@ -9,27 +15,25 @@
 
 - name: Detect bare-IP deployment
   ansible.builtin.set_fact:
-    is_bare_ip: >-
+    nginx_tls_is_bare_ip: >-
       {{ gitea_env.DOMAIN is match('^[0-9]{1,3}(\.[0-9]{1,3}){3}$') }}
 
 - name: Remove default nginx site
   ansible.builtin.file:
     path: /etc/nginx/sites-enabled/default
     state: absent
-  notify: reload nginx
+  notify: Reload nginx
 
-# --- bare IP: HTTP only -----------------------------------------------------
 - name: Render HTTP-only vhost (bare IP)
-  ansible.builtin.template:
-    src: "{{ repo_root }}/nginx/gitea-http.conf.template"
+  ansible.builtin.copy:
     dest: /etc/nginx/sites-available/gitea
     mode: "0644"
-  vars:
-    DOMAIN: "{{ gitea_env.DOMAIN }}"
-  when: is_bare_ip
-  notify: reload nginx
+    content: >-
+      {{ lookup('ansible.builtin.file', repo_root ~ '/nginx/gitea-http.conf.template')
+         | replace('${DOMAIN}', gitea_env.DOMAIN) }}
+  when: nginx_tls_is_bare_ip | bool
+  notify: Reload nginx
 
-# --- domain: ACME challenge, then TLS vhost ---------------------------------
 - name: Place temporary HTTP vhost for the ACME challenge
   ansible.builtin.copy:
     dest: /etc/nginx/sites-available/gitea
@@ -40,15 +44,15 @@
           server_name {{ gitea_env.DOMAIN }};
           location / { return 200 'ok'; add_header Content-Type text/plain; }
       }
-  when: not is_bare_ip and enable_tls
-  notify: reload nginx
+  when: not (nginx_tls_is_bare_ip | bool) and enable_tls
+  notify: Reload nginx
 
 - name: Enable gitea vhost
   ansible.builtin.file:
     src: /etc/nginx/sites-available/gitea
     dest: /etc/nginx/sites-enabled/gitea
     state: link
-  notify: reload nginx
+  notify: Reload nginx
 
 - name: Flush handlers so nginx is serving before certbot runs
   ansible.builtin.meta: flush_handlers
@@ -59,22 +63,22 @@
       certbot certonly --nginx -d {{ gitea_env.DOMAIN }}
       --non-interactive --agree-tos --email {{ gitea_env.LETSENCRYPT_EMAIL }}
     creates: "/etc/letsencrypt/live/{{ gitea_env.DOMAIN }}/fullchain.pem"
-  when: not is_bare_ip and enable_tls
+  when: not (nginx_tls_is_bare_ip | bool) and enable_tls
 
 - name: Render TLS vhost
-  ansible.builtin.template:
-    src: "{{ repo_root }}/nginx/gitea.conf.template"
+  ansible.builtin.copy:
     dest: /etc/nginx/sites-available/gitea
     mode: "0644"
-  vars:
-    DOMAIN: "{{ gitea_env.DOMAIN }}"
-  when: not is_bare_ip and enable_tls
-  notify: reload nginx
+    content: >-
+      {{ lookup('ansible.builtin.file', repo_root ~ '/nginx/gitea.conf.template')
+         | replace('${DOMAIN}', gitea_env.DOMAIN) }}
+  when: not (nginx_tls_is_bare_ip | bool) and enable_tls
+  notify: Reload nginx
 
 - name: Enable certbot renewal timer
   ansible.builtin.systemd:
     name: certbot.timer
     enabled: true
     state: started
-  when: not is_bare_ip and enable_tls
+  when: not (nginx_tls_is_bare_ip | bool) and enable_tls
   failed_when: false

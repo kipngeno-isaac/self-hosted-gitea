@@ -5,15 +5,14 @@
 
 repo_root: "{{ playbook_dir }}/.."
 deploy_dir: /opt/gitea
-deploy_user: gitea
 
 # Ports opened by the hardening role. Keep in sync with the Hetzner firewall
 # rules in terraform/main.tf.
 firewall_allowed_ports:
-  - { port: 22,  proto: tcp, comment: "SSH" }
-  - { port: 80,  proto: tcp, comment: "HTTP (ACME + redirect)" }
-  - { port: 443, proto: tcp, comment: "HTTPS" }
-  - { port: 222, proto: tcp, comment: "Gitea SSH" }
+  - {port: 22, proto: tcp, comment: "SSH"}
+  - {port: 80, proto: tcp, comment: "HTTP (ACME + redirect)"}
+  - {port: 443, proto: tcp, comment: "HTTPS"}
+  - {port: 222, proto: tcp, comment: "Gitea SSH"}
 
 # Set false to skip certbot — used for bare-IP deployments, matching the
 # IS_IP branch in scripts/bootstrap.sh.

@@ -1,34 +1,35 @@
 ---
-- name: Self-hosted Gitea — full host build
-  hosts: gitea
-  become: true
-
-  pre_tasks:
-    - name: Verify .env exists on the control machine
+- name: Load stack configuration from .env
+  hosts: localhost
+  gather_facts: false
+  vars:
+    repo_root: "{{ playbook_dir }}/.."
+  tasks:
+    - name: Verify .env exists
       ansible.builtin.stat:
         path: "{{ repo_root }}/.env"
       register: env_file
-      delegate_to: localhost
-      become: false
-      run_once: true
 
     - name: Fail early when .env is missing
       ansible.builtin.fail:
         msg: >-
-          {{ repo_root }}/.env not found. Copy .env.example to .env and fill it in
-          before running this playbook — the gitea_stack role copies it to the server.
+          {{ repo_root }}/.env not found. Copy .env.example to .env and fill it
+          in before running this playbook — the gitea_stack role copies it to
+          the server.
       when: not env_file.stat.exists
-      run_once: true
 
-    - name: Load .env into Ansible facts
+    - name: Parse .env into a dictionary
       ansible.builtin.set_fact:
         gitea_env: >-
           {{ dict(lookup('ansible.builtin.file', repo_root ~ '/.env').splitlines()
-             | reject('match', '^\s*(#|$)')
+             | reject('match', '^\\s*(#|$)')
              | map('split', '=', 1) | list) }}
-      delegate_to: localhost
-      become: false
-      run_once: true
+
+- name: Build the Gitea host
+  hosts: gitea
+  become: true
+  vars:
+    gitea_env: "{{ hostvars['localhost']['gitea_env'] }}"
 
   roles:
     - role: common

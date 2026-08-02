@@ -1,22 +1,22 @@
 [sshd]
 enabled  = true
 port     = ssh
-maxretry = {{ fail2ban_maxretry }}
-bantime  = {{ fail2ban_bantime }}
-findtime = {{ fail2ban_findtime }}
+maxretry = {{ hardening_fail2ban_maxretry }}
+bantime  = {{ hardening_fail2ban_bantime }}
+findtime = {{ hardening_fail2ban_findtime }}
 
 [nginx-http-auth]
 enabled  = true
 port     = http,https
 logpath  = /var/log/nginx/error.log
-maxretry = {{ fail2ban_maxretry }}
-bantime  = {{ fail2ban_bantime }}
+maxretry = {{ hardening_fail2ban_maxretry }}
+bantime  = {{ hardening_fail2ban_bantime }}
 
 [gitea]
 enabled  = true
 port     = http,https
 filter   = gitea
-logpath  = {{ gitea_log_path }}
+logpath  = {{ hardening_gitea_log_path }}
 maxretry = 10
-bantime  = {{ fail2ban_bantime }}
-findtime = {{ fail2ban_findtime }}
+bantime  = {{ hardening_fail2ban_bantime }}
+findtime = {{ hardening_fail2ban_findtime }}

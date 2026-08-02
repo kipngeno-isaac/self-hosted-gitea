@@ -35,7 +35,7 @@
   ansible.builtin.uri:
     url: "http://127.0.0.1:3000/api/healthz"
     status_code: [200]
-  register: gitea_health
+  register: gitea_stack_health
   retries: 30
   delay: 5
-  until: gitea_health.status == 200
+  until: gitea_stack_health.status == 200
