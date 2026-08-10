@@ -1,0 +1,6 @@
+---
+collections:
+  - name: community.general      # ufw module
+    version: ">=8.0.0"
+  - name: community.docker       # docker_compose_v2 module
+    version: ">=3.6.0"

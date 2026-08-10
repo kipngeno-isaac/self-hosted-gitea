@@ -1,4 +1,5 @@
-.PHONY: bootstrap deploy update stop restart logs status backup restore harden monitoring-up monitoring-down grafana
+.PHONY: bootstrap deploy update stop restart logs status backup restore harden monitoring-up monitoring-down grafana \
+        tf-init tf-plan tf-apply tf-destroy ansible-deps ansible-check ansible-deploy ansible-harden provision
 
 # First-time server setup (run as root/sudo)
 bootstrap:
@@ -80,3 +81,43 @@ grafana-public:
 grafana:
 	@echo "Grafana: https://grafana.$$(grep ^DOMAIN .env | cut -d= -f2)"
 	@echo "Credentials: admin / (GRAFANA_PASSWORD from .env)"
+
+
+# ── Infrastructure as Code ───────────────────────────────────────────────────
+# Terraform provisions the host; Ansible configures it. The shell scripts above
+# still work for a host you provisioned by hand.
+
+# Download providers
+tf-init:
+	cd terraform && terraform init
+
+# Preview infrastructure changes
+tf-plan:
+	cd terraform && terraform plan
+
+# Create/update the server and generate the Ansible inventory
+tf-apply:
+	cd terraform && terraform apply
+
+# Tear down (server has prevent_destroy — remove it first, and check backups)
+tf-destroy:
+	cd terraform && terraform destroy
+
+# Install required Ansible collections
+ansible-deps:
+	cd ansible && ansible-galaxy collection install -r requirements.yml
+
+# Dry-run the whole playbook
+ansible-check:
+	cd ansible && ansible-playbook site.yml --check --diff
+
+# Configure the host and bring the stack up
+ansible-deploy:
+	cd ansible && ansible-playbook site.yml
+
+# Re-apply security configuration only
+ansible-harden:
+	cd ansible && ansible-playbook site.yml --tags hardening
+
+# Full path: bare cloud account to running Gitea
+provision: tf-init tf-apply ansible-deps ansible-deploy
