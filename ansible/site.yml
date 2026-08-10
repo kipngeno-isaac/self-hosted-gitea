@@ -20,10 +20,7 @@
 
     - name: Parse .env into a dictionary
       ansible.builtin.set_fact:
-        gitea_env: >-
-          {{ dict(lookup('ansible.builtin.file', repo_root ~ '/.env').splitlines()
-             | reject('match', '^\\s*(#|$)')
-             | map('split', '=', 1) | list) }}
+        gitea_env: "{{ dict(lookup('ansible.builtin.file', repo_root ~ '/.env').splitlines() | reject('match', '^\\s*(#|$)') | map('split', '=', 1) | list) }}"
 
 - name: Build the Gitea host
   hosts: gitea
