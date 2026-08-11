@@ -85,9 +85,11 @@ services:
       - GITEA_INSTANCE_URL=http://gitea:3000
       - GITEA_RUNNER_REGISTRATION_TOKEN=${RUNNER_TOKEN}
       - GITEA_RUNNER_NAME=runner-1
+      - CONFIG_FILE=/data/config.yaml
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./runner1-data:/data
+      - ./runner-config.yaml:/data/config.yaml:ro
     networks:
       - gitea-net
     deploy:
@@ -106,9 +108,11 @@ services:
       - GITEA_INSTANCE_URL=http://gitea:3000
       - GITEA_RUNNER_REGISTRATION_TOKEN=${RUNNER_TOKEN}
       - GITEA_RUNNER_NAME=runner-2
+      - CONFIG_FILE=/data/config.yaml
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./runner2-data:/data
+      - ./runner-config.yaml:/data/config.yaml:ro
     networks:
       - gitea-net
     deploy:
@@ -127,9 +131,11 @@ services:
       - GITEA_INSTANCE_URL=http://gitea:3000
       - GITEA_RUNNER_REGISTRATION_TOKEN=${RUNNER_TOKEN}
       - GITEA_RUNNER_NAME=runner-3
+      - CONFIG_FILE=/data/config.yaml
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./runner3-data:/data
+      - ./runner-config.yaml:/data/config.yaml:ro
     networks:
       - gitea-net
     deploy:
@@ -186,6 +192,7 @@ services:
 
 networks:
   gitea-net:
+    name: gitea-net
     driver: bridge
 
 volumes:

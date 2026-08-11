@@ -1,0 +1,67 @@
+# Config for the act_runner containers (runner-1/2/3 in docker-compose.yml).
+#
+# The one setting that matters here: container.network. Job containers are
+# created by act_runner via the mounted host docker.sock as siblings of the
+# compose stack, not children of it — left at the default (""), act_runner
+# creates a fresh network per job, which is NOT gitea-net, so job containers
+# can't resolve the "gitea" hostname and every checkout fails with
+# "Could not resolve host: gitea". Pinning it to the compose network's fixed
+# name (see the `name:` on gitea-net in docker-compose.yml) fixes that.
+#
+# Generated from `act_runner generate-config` with only container.network
+# and runner.envs changed; see upstream for the meaning of every field:
+# https://gitea.com/gitea/act_runner/raw/branch/main/internal/pkg/config/config.example.yaml
+
+log:
+  level: info
+
+runner:
+  file: .runner
+  capacity: 1
+  envs: {}
+  env_file: .env
+  timeout: 3h
+  shutdown_timeout: 0s
+  insecure: false
+  fetch_timeout: 5s
+  fetch_interval: 2s
+  fetch_interval_max: 5s
+  log_report_interval: 5s
+  log_report_max_latency: 3s
+  log_report_batch_size: 100
+  state_report_interval: 5s
+  github_mirror: ''
+  labels:
+    - "ubuntu-latest:docker://docker.gitea.com/runner-images:ubuntu-latest"
+    - "ubuntu-24.04:docker://docker.gitea.com/runner-images:ubuntu-24.04"
+    - "ubuntu-22.04:docker://docker.gitea.com/runner-images:ubuntu-22.04"
+
+cache:
+  enabled: true
+  dir: ""
+  host: ""
+  port: 0
+  external_server: ""
+  external_secret: ""
+
+container:
+  # Job containers join the same network as the gitea/db/redis containers,
+  # so they can resolve "gitea" the same way the runner daemon itself does.
+  network: "gitea-net"
+  privileged: false
+  options:
+  workdir_parent:
+  valid_volumes: []
+  docker_host: ""
+  force_pull: true
+  force_rebuild: false
+  require_docker: false
+  docker_timeout: 0s
+  bind_workdir: false
+
+host:
+  workdir_parent:
+
+metrics:
+  enabled: false
+  addr: "127.0.0.1:9101"
