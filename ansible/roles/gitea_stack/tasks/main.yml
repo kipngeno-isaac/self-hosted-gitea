@@ -12,6 +12,7 @@
     mode: preserve
   loop:
     - docker-compose.yml
+    - runner-config.yaml
     - monitoring
     - nginx
     - scripts
